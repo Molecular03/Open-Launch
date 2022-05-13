@@ -23,17 +23,23 @@ def integrate_plot():
     toolbar = NavigationToolbar2Tk(canvas,toolbarFrame)
 
 def quit(): window.destroy, window.quit()
-
+    
 def add_plot_values():
-    x = [i**2 for i in range(0,5)]
+    x = [i**2 for i in range(0,10)]
     plt.plot(x)
+    plt.grid(True)
+    ax = plt.gca()
+    ax.spines['top'].set_color('none')
+    ax.spines['left'].set_position('zero')
+    ax.spines['right'].set_color('none')
+    ax.spines['bottom'].set_position('zero')
     canvas.draw()
 
 def test_input(entry,error_string,errPhrase): #Assures Entry boxes are filled
     entered = str(entry.get())
     if entered.isnumeric() is False:
         error_string += errPhrase
-        var = 0
+        var = 1.0
     else:
         var = float(entry.get())
     return var, error_string
@@ -43,30 +49,35 @@ def append_faster(ls, *to_append):
         ls.append(float(i))
     return ls
     
+def temp_get(T0, tUnit, error_string):
+    if tUnit == 'K': 
+        error_string += '\nThank you for using kelvin'
+    elif tUnit == 'C': 
+        T0 += 273.15 #Initial temperature in kelvin
+    elif tUnit == 'F':
+        T0 = ((T0 - 32) * 5/9) + 273.15 #Initial temperature in kelvin
+        error_string += '\nPlease consider using celsius or kelvin next time'
+    else:
+        error_string += '\nA unit of temperature (K,C,F)'
+    return T0, error_string
+    
 def values():
     global variables
     #Gravitational constant, Gravitational acceleration, Mass of earth, molar mass of dry air, molar gass constant
     variables = [6.67e-11, 9.81,5.972e24, 0.028964,8.3145]
     error_string = ''
+    tUnit = str(tUnitSelection.get()).upper()
     T0, error_string = test_input(TempEntry,error_string,'\nThe temperature') #Returns T0 if it exists
-    tUnit = tUnitSelection.get()
-    if tUnit == 'K': error_string += '\nThank you for using kelvin'
-    elif tUnit == 'C': T0 += 273.15 #Initial temperature in kelvin
-    elif tUnit == 'F':
-        T0 = ((T0 - 32) * 5/9) + 273.15 #Initial temperature in kelvin
-        error_string += '\nPlease consider using celsius or kelvin next time'
-    else:
-        error_string += '\nA unit of temperature'
+    T0, error_string = temp_get(T0, tUnit, error_string) #Update T0 for the proper unit of temperature
     errors_to_throw = ['\nThe pressure at the pad','\nThe rocket\'s thrust','\nThe drag coefficient','\nThe rocket\'s radius','\nThe rocket\'s wet mass','\nThe rocket\'s dry mass','\nThe rocket\'s Isp']
     for i in range(len(entries) - 3):
         var, error_string = test_input(entries[i],error_string,errors_to_throw[i])
         variables.append(float(var))
     passableErrors = ['','\nPlease consider using celsius or kelvin next time','\nThank you for using kelvin']
-    if error_string not in passableErrors:
-       error_string = 'Please Enter:' + error_string 
     errorLabel.config(text=error_string)
-    
-    if error_string in passableErrors:
+    if error_string not in passableErrors:
+       error_string = 'Please Enter:' + error_string
+    else:
         rho0 = (variables[3]*variables[5])/(variables[4]*T0) #Air density --> sea level
         area = np.pi*(variables[3]**2)
         mflowrate = variables[6]/variables[1]*variables[11]
@@ -74,24 +85,23 @@ def values():
         plotButton.grid(row=4,column=1)
         return variables
 
-def drag():
-    pass
-    #Fdrag = (rho_z*(v**2)*Cd*A)/2
-    #rho_z = (variables[3]*T_z)/(variables[4]*P_z)
-    #T_z = T0 - L*z
+def drag(): #http://www.braeunig.us/space/atmmodel.htm#equations
+    #T_z = variables[12] - 
     #P_z = P0(T0/T_z)**((g0*M)/(R*L))
+    #rho_z = (variables[3]*T_z)/(variables[4]*P_z)
+    #Fdrag = (rho_z*(v**2)*Cd*A)/2
+    #return Fdrag
+    pass
     
 def euler_cromer():
     z, v, t = 1, 0, 0.1 #Initial altitude (m), Initial velocity (m/s), Initial time
     dt = 0.1
-    m0 = rSpecs0[4] + rSpecs0[5]
-    thrust = rSpecs[0]
+    total_mass = variables[9] + variables[10]
     while True: #t0 --> t max:
-        #m_t = m0 - (thrust*dt/variables[1]*rSpecs0[6]) #Mass at time t FIX RSPECS0 TO VARIABLES
-        #g_z = variables[0]*variables[2]/(z+6371000)**2 #Gravity at time t
-        #Fg = m_t * g_z #Gravitational force
-        
+        m_t = m0 - (variables[15]*dt)
+        g_z = (variables[0]*variables[2])/((z+6371000)**2)
         Fdrag = drag()
+        
         #call: density func, wave drag func. Calculate: thrust, drag
         #If drag vector condition
         #euler-cromer: v = v + (thrust - drag - g)*dt
@@ -109,9 +119,6 @@ quitButton = Button(inputSection, text='Quit', command=quit).grid(row=6,column=1
 
 def __prompts__(Prompted,r,c):
     self = Label(inputSection,text=Prompted)
-    self.grid(row=r,column=c)
-
-def __grid__(self,r,c):
     self.grid(row=r,column=c)
     
 Prompted = ['Temp: ','Pressure (Pa): ','Thrust (N): ','Drag Coefficient: ','Radius (m): ','Dry Mass (kg):','Wet Mass (kg):','Isp (s):']
@@ -136,13 +143,15 @@ WetMassEntry = Entry(inputSection) #Enter Wet Mass
 DryMassEntry = Entry(inputSection) #Enter Dry Mass
 IspEntry = Entry(inputSection) #Enter Isp
 
+def __grid__(self,r,c):
+    self.grid(row=r,column=c)
+    
 entries = [PressureEntry,ThrustEntry,DragCoEntry,REntry,WetMassEntry,DryMassEntry,IspEntry,errorLabel,tUnitSelection,TempEntry]
 Rows, Cols = [2,0,1,2,3,4,5,3,0,1], [1,4,4,4,4,4,4,1,1,1]
 for i in range(len(entries)):
     __grid__(entries[i], Rows[i], Cols[i])
 
-plotButton = Button(inputSection, text='Plot', command=add_plot_values) #Adds values to the plot
 getVariables = Button(inputSection, text='Calculate', command=values).grid(row=0,column=5)
-
+plotButton = Button(inputSection, text='Plot', command=add_plot_values) #Adds values to the plot
 window.mainloop()
 #https://pages.vassar.edu/magnes/2019/05/12/computational-simulation-of-rocket-trajectories/
