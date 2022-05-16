@@ -85,13 +85,22 @@ def values():
         plotButton.grid(row=4,column=1)
         return variables
 
-def drag(): #http://www.braeunig.us/space/atmmodel.htm#equations
-    #T_z = variables[12] - 
-    #P_z = P0(T0/T_z)**((g0*M)/(R*L))
-    #rho_z = (variables[3]*T_z)/(variables[4]*P_z)
-    #Fdrag = (rho_z*(v**2)*Cd*A)/2
-    #return Fdrag
-    pass
+def density(): #http://www.braeunig.us/space/atmmodel.htm#equations (Note: This is an approximation, will possibly get more exact in future updates)
+    z_km = z/1000 #altitude in km
+    Lm = 279.65 * z_km #Lapse rate at altitude z
+    T_z = variables[12] - Lm #Initial temp - lapse rate
+    P_z = P0(T0/T_z)**((g0*M)/(R*Lm)) #replace with variable list positions
+    rho_z = (variables[3]*T_z)/(variables[4]*P_z)
+    return rho_z, T_z, P_z
+
+def drag_coefficient(v,T):
+    speed_sound = np.sqrt(1.4*287*T)
+    Mach = float(v/speed_sound)
+    Prandtl_Glauert_Factor = np.sqrt(1-Mach**2)
+    if Mach > 1:
+       Cd = Cd0/np.sqrt(Mach**2 - 1) #Replace Cd0 with variables position
+    else: Cd = Cd0/Prandtl_Glauert_Factor
+    return Cd
     
 def euler_cromer():
     z, v, t = 1, 0, 0.1 #Initial altitude (m), Initial velocity (m/s), Initial time
@@ -100,10 +109,12 @@ def euler_cromer():
     while True: #t0 --> t max:
         m_t = m0 - (variables[15]*dt)
         g_z = (variables[0]*variables[2])/((z+6371000)**2)
-        Fdrag = drag()
-        
-        #call: density func, wave drag func. Calculate: thrust, drag
-        #If drag vector condition
+        rho, T, P = density()
+        Cd = drag_coefficient(v, T)
+        thrust /= m_t
+        Fdrag = (rho*(v**2)*Cd*A)/2 #A needs to be replaced with variable parameter
+        if v < 0:
+            Fdrag *= -1
         #euler-cromer: v = v + (thrust - drag - g)*dt
                        #z = z+ v*dt
         #save matrix values for v,z,m,g,thrust,drag,rho
