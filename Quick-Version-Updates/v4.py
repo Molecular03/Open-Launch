@@ -37,11 +37,16 @@ def add_plot_values():
 
 def test_input(entry,error_string,errPhrase): #Assures Entry boxes are filled
     entered = str(entry.get())
-    if entered.isnumeric() is False:
+    if '.' in entered:
+        floatTest = entered.replace('.', '', 1).isdigit()
+    else:
+        floatTest = entered
+    if entered.isnumeric() is False or floatTest is False:
         error_string += errPhrase
         var = 1.0
     else:
-        var = float(entry.get())
+        var = entry.get()
+        var = float(var)
     return var, error_string
 
 def append_faster(ls, *to_append):
@@ -85,45 +90,51 @@ def values():
         plotButton.grid(row=4,column=1)
         return variables
 
-def density(): #http://www.braeunig.us/space/atmmodel.htm#equations (Note: This is an approximation, will possibly get more exact in future updates)
+def density(T_z,z): #http://www.braeunig.us/space/atmmodel.htm#equations (Note: This is an approximation, will possibly get more exact in future updates)
     z_km = z/1000 #altitude in km
     Lm = 279.65 * z_km #Lapse rate at altitude z
     T_z = variables[12] - Lm #Initial temp - lapse rate
-    P_z = P0(T0/T_z)**((g0*M)/(R*Lm)) #replace with variable list positions
+    P_z = variables[5]*(variables[12]/T_z)**((variables[1]*variables[3])/(variables[4]*Lm))
     rho_z = (variables[3]*T_z)/(variables[4]*P_z)
     return rho_z, T_z, P_z
 
-def drag_coefficient(v,T):
-    speed_sound = np.sqrt(1.4*287*T)
+def drag_coefficient(v,T_z,Cd0):
+    speed_sound = np.sqrt(1.4*287*T_z)
     Mach = float(v/speed_sound)
     Prandtl_Glauert_Factor = np.sqrt(1-Mach**2)
     if Mach > 1:
-       Cd = Cd0/np.sqrt(Mach**2 - 1) #Replace Cd0 with variables position
+       Cd = variables[7]/np.sqrt(Mach**2 - 1)
     else: Cd = Cd0/Prandtl_Glauert_Factor
     return Cd
+
+def plot_trajectory():
+    pass
     
 def euler_cromer():
     z, v, t = 1, 0, 0.1 #Initial altitude (m), Initial velocity (m/s), Initial time
     dt = 0.1
     total_mass = variables[9] + variables[10]
-    while True: #t0 --> t max:
-        m_t = m0 - (variables[15]*dt)
+    T_z, Cd_z, thrust = variables[12], variables[7], variables[6]
+    while t < 2: #t0 --> t max:
+        print(v,z,t)
+        m_t = total_mass - (variables[15]*dt)
         g_z = (variables[0]*variables[2])/((z+6371000)**2)
-        rho, T, P = density()
-        Cd = drag_coefficient(v, T)
+        rho, T_z, P = density(T_z,z)
+        Cd_z = drag_coefficient(v, T_z, variables[7])
         thrust /= m_t
-        Fdrag = (rho*(v**2)*Cd*A)/2 #A needs to be replaced with variable parameter
+        Fdrag = (rho*(v**2)*Cd_z*variables[14])/2
         if v < 0:
             Fdrag *= -1
-        #euler-cromer: v = v + (thrust - drag - g)*dt
-                       #z = z+ v*dt
-        #save matrix values for v,z,m,g,thrust,drag,rho
-        #save end time
-        #If crash
-        #If empty
-    #Plot z vs. t, v vs. t
-    #Plot thrust, drag force, and g vs. t (Optional)
-
+        v += (thrust - Fdrag - g_z)*dt
+        z += v*dt
+        t += dt
+        if z <= 0 and t != 0: #Crash Condition
+            print('Crashed!') #Change to a Tkinter output 
+            break
+        if m_t <= variables[10]: #If current mass is less than/equal to dry mass, no more propellant is available
+            print('No more fuel') #Change to a Tkinter output 
+            break
+            
 window, inputSection, plotFrame = set_window()
 integrate_plot()
 quitButton = Button(inputSection, text='Quit', command=quit).grid(row=6,column=1)
@@ -163,6 +174,6 @@ for i in range(len(entries)):
     __grid__(entries[i], Rows[i], Cols[i])
 
 getVariables = Button(inputSection, text='Calculate', command=values).grid(row=0,column=5)
-plotButton = Button(inputSection, text='Plot', command=add_plot_values) #Adds values to the plot
+plotButton = Button(inputSection, text='Plot', command=euler_cromer) #Adds values to the plot
 window.mainloop()
 #https://pages.vassar.edu/magnes/2019/05/12/computational-simulation-of-rocket-trajectories/
