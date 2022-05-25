@@ -1,0 +1,26 @@
+Metadata-Version: 2.1
+Name: Open-Launch-Molecular03
+Version: 0.0.1
+Home-page: https://github.com/Molecular03/Open-Launch
+Author: Evan Lapensee
+Author-email: evlapensee06@gmail.com
+Project-URL: Bug Tracker, https://github.com/Molecular03/Open-Launch/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: GPL-3.0 License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# Open-Launch
+A work in progress, free and open source launch simulation for hobbyists and space enthusiasts.
+
+
+### Quick-Version-Updates
+Temporary folder for early stage code that will be updated often. 
+New versions are created when big changes are integrated.
+
+### main.py
+Will eventually become the working version. 
+
+A few more updates are needed before it can work as intended.
