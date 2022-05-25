@@ -28,13 +28,13 @@ def validate_input(entry, error_string, errPhrase):
     return var, error_string
     
 def get_values():
-    global G, g_z, MoE, Mol_Air, R, T_z, P_z, Thrust_z, Cd_z, Radius, WetM, DryM, WetM, Isp, rho_z, A
+    global G, g_z, MoE, Mol_Air, R, T_z, P_z, P_0, Thrust_z, Cd_z, Radius, WetM, DryM, WetM, Isp, rho_z, A, Thrust_0, Cd_0
     error_string = ''
     tUnit = str(tUnitSelection.get()).upper()
     G = Var('Gravitational Constant',6.67e-11)
     g_z = Var('Gravitational Acceleration', -9.81)
     MoE = Var('Mass of Earth (kg)', 5.972e24)
-    Mol_Air = Var('Molar mass of dry air',289.64)
+    Mol_Air = Var('Molar mass of dry air',0.029)
     R = Var('Molar gass constant', 8.3145)
     t0, error_string = validate_input(TempEntry,error_string,'\nTemperature at pad')
     if tUnit == 'K':
@@ -48,9 +48,12 @@ def get_values():
     T_z = Var('Temperature',t0)
     p0, error_string = validate_input(PressureEntry,error_string,'\nPressure at pad')
     P_z = Var('Pressure',p0)
+    P_0 = Var('Initial Pressure', p0)
     thrust0, error_string = validate_input(ThrustEntry,error_string,'\nThrust')
     Thrust_z = Var('Thrust',thrust0)
+    Thrust_0 = Var('Initial Thrust', thrust0)
     Cd0, error_string = validate_input(DragCoEntry,error_string,'\nDrag Coefficient')
+    Cd_0 = Var('Initial Cd', Cd0)
     Cd_z = Var('Cd', Cd0)
     r, error_string = validate_input(REntry,error_string,'\nRadius')
     Radius = Var('Radius', r)
@@ -70,7 +73,6 @@ def get_values():
     else:
         errorLabel.config(text=error_string)
         plotButton.grid(row=1,column=5)
-    '''
     #For example:
     T_z = Var('Temperature',300)
     P_z = Var('Pressure',101325)
@@ -85,28 +87,30 @@ def get_values():
     area = np.pi*((1.75/2)**2)
     A = Var('Cross Sectional Area', area)
     plotButton.grid(row=1,column=5)
-    '''
     
 def density(T_z,z,P_z,g_z): #http://www.braeunig.us/space/atmmodel.htm#equations (Note: This is an approximation, will possibly get more exact in future updates)
-    z_km = z / Decimal(1000) #altitude in km
-    Lm = Decimal(279.65) * z_km #Lapse rate at altitude z
+    Lm = Mol_Air.value * z #Lapse rate at altitude z
     T_z = T_z - Lm #Initial temp - lapse rate
-    P_z = P_z*(T_z/T_z)**((g_z*Decimal(0.029))/(R.value*Lm))
-    rho_z = (Decimal(0.029)*T_z)/(R.value*P_z)
+    P_exp = (g_z * Mol_Air.value) / (R.value * Lm)
+    P_z = P_0.value*(T_z/(T_z-Lm))**(P_exp)
+    rho_z = (Mol_Air.value*T_z)/(R.value*P_z)
     return rho_z, T_z, P_z
 
-def drag_coefficient(v,T_z,Cd_z):
+def drag_coefficient(v,T_z,Cd_z,Cd_0):
     n = Mol_Air.value*Decimal(1.4)
     if T_z > Decimal(0):
         speed_sound = Decimal(np.sqrt(n*T_z))
         Mach = v/speed_sound
         if Mach > Decimal(1):
-            Cd_z /= Decimal(np.sqrt(Mach**2 - Decimal(1)))
+            Prandtl_Glauert = Decimal(np.sqrt(Mach**2-Decimal(1)))
+            Cd_z = Cd_0/Prandtl_Glauert
         elif Mach == Decimal(1):
             Mach -= 1e-5
-            Cd_z /= Decimal(np.sqrt(Mach**2 - Decimal(1)))
+            Prandtl_Glauert = Decimal(np.sqrt(Mach**2-Decimal(1)))
+            Cd_z = Cd_0/Prandtl_Glauert
         else: 
-            Cd_z /= Decimal(np.sqrt(Decimal(1)-Mach**2))
+            Prandtl_Glauert = Decimal(np.sqrt(Decimal(1)-Mach**2))
+            Cd_z = Cd_0/Prandtl_Glauert
     else:
         Cd_z = 1
     return Cd_z
@@ -118,7 +122,6 @@ def g_getter(z,earth_grav,g_z):
     return g_z
 
 def euler_cromer():
-    getcontext().prec = 32
     z = Var('Altitude', 1)
     v = Var('Velocity', 0)
     t = Var('Time', 0.1)
@@ -126,7 +129,8 @@ def euler_cromer():
     z_values, t_values = [], []
     earth_grav =  Decimal(G.value*MoE.value)
     earth_grav = round(earth_grav,2)
-    Fdrag = Var('Drag force', 1.0)
+    fdrag0 = Cd_z.value * rho_z.value * v.value**2 * A.value * Decimal(0.5)
+    Fdrag = Var('Drag force', fdrag0)
     mflowrate = Thrust_z.value/(g_z.value*Isp.value)
     Mass_flow_rate = Var('Mass flow rate', mflowrate)
     while t.value <= Isp.value:
@@ -134,8 +138,6 @@ def euler_cromer():
             print('Crashed!') #Change to a Tkinter output 
             break
         if WetM.value <= DryM.value: #If current mass is less than/equal to dry mass, no more propellant is available
-            Thrust_z.value = 0
-            Mass_flow_rate = 0
             print('No more fuel') #Change to a Tkinter output 
             break
         if int(g_z.value) == 0 or int(g_z.value) == 1:
@@ -143,11 +145,13 @@ def euler_cromer():
         else:
             g_z.value = g_getter(z.value,earth_grav,g_z.value)
         WetM.value += Mass_flow_rate.value #Mass update from fuel use
+        WetM.value = round(WetM.value,3)
         rho_z.value, T_z.value, P_z.value = density(T_z.value,z.value,P_z.value,g_z.value) #Rho, temp, pressure update
-        Cd_z.value = drag_coefficient(v.value, T_z.value, Cd_z.value) #Drag coefficient
-        Thrust_z.value /= WetM.value
+        Cd_z.value = drag_coefficient(v.value, T_z.value, Cd_z.value, Cd_0.value) #Drag coefficient
+        Thrust_z.value = Thrust_0.value/WetM.value
         v_sq = v.value**2
-        Fdrag.value = (rho_z.value*v_sq*Cd_z.value*(A.value/WetM.value))/2
+        A.value = round(A.value,2)
+        Fdrag.value = rho_z.value*v_sq*Cd_z.value*A.value*Decimal(0.5)
         if v.value < 0:
             Fdrag.value *= -1
         v.value += (Thrust_z.value - Fdrag.value - g_z.value)*dt.value
