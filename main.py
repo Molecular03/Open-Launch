@@ -70,7 +70,7 @@ def get_values():
     else:
         errorLabel.config(text=error_string)
         plotButton.grid(row=1,column=5)
-    ''' 
+    '''
     #For example:
     T_z = Var('Temperature',300)
     P_z = Var('Pressure',101325)
@@ -111,6 +111,12 @@ def drag_coefficient(v,T_z,Cd_z):
         Cd_z = 1
     return Cd_z
 
+def g_getter(z,earth_grav,g_z):
+    distance_from_earth = z+Decimal(6.371e6)
+    distance_from_earth = Decimal(int(distance_from_earth))
+    g_z = -earth_grav/(distance_from_earth**2) #Gravitational acceleration update as function of z
+    return g_z
+
 def euler_cromer():
     getcontext().prec = 32
     z = Var('Altitude', 1)
@@ -118,18 +124,28 @@ def euler_cromer():
     t = Var('Time', 0.1)
     dt = Var('dt', 0.1)
     z_values, t_values = [], []
-    earth_grav = Var('Earth\'s gravitational influence', G.value*MoE.value)
+    earth_grav =  Decimal(G.value*MoE.value)
+    earth_grav = round(earth_grav,2)
     Fdrag = Var('Drag force', 1.0)
     mflowrate = Thrust_z.value/(g_z.value*Isp.value)
     Mass_flow_rate = Var('Mass flow rate', mflowrate)
     while t.value <= Isp.value:
-        distance_from_earth = z.value+Decimal(6.371e6)
-        WetM.value -= Mass_flow_rate.value * dt.value #Mass update from fuel use
-        g_z.value = -earth_grav.value/(distance_from_earth**2) #Gravitational acceleration update as function of z
+        if z.value < Decimal(0): #Crash Condition
+            print('Crashed!') #Change to a Tkinter output 
+            break
+        if WetM.value <= DryM.value: #If current mass is less than/equal to dry mass, no more propellant is available
+            Thrust_z.value = 0
+            Mass_flow_rate = 0
+            print('No more fuel') #Change to a Tkinter output 
+            break
+        if int(g_z.value) == 0 or int(g_z.value) == 1:
+            g_z.value = Decimal(1.0)
+        else:
+            g_z.value = g_getter(z.value,earth_grav,g_z.value)
+        WetM.value += Mass_flow_rate.value #Mass update from fuel use
         rho_z.value, T_z.value, P_z.value = density(T_z.value,z.value,P_z.value,g_z.value) #Rho, temp, pressure update
         Cd_z.value = drag_coefficient(v.value, T_z.value, Cd_z.value) #Drag coefficient
         Thrust_z.value /= WetM.value
-        Mass_flow_rate.value = Thrust_z.value/(g_z.value*Isp.value) #mass flow rate update
         v_sq = v.value**2
         Fdrag.value = (rho_z.value*v_sq*Cd_z.value*(A.value/WetM.value))/2
         if v.value < 0:
@@ -137,17 +153,15 @@ def euler_cromer():
         v.value += (Thrust_z.value - Fdrag.value - g_z.value)*dt.value
         z.value += v.value*dt.value
         t.value += dt.value
-        z_values.append(z.value/ Decimal(1000))#z_values.append(z.value)
+        z_values.append(z.value)
         t_values.append(t.value)
-        if z.value < Decimal(0): #Crash Condition
-            print('Crashed!') #Change to a Tkinter output 
-            break
-        elif WetM.value <= DryM.value: #If current mass is less than/equal to dry mass, no more propellant is available
-            Thrust_z.value = 0
-            Mass_flow_rate = 0
-            print('No more fuel') #Change to a Tkinter output 
-            break
     plt.plot(t_values,z_values,'-o')
+    plt.grid(True)
+    ax = plt.gca()
+    ax.spines['top'].set_color('none')
+    ax.spines['left'].set_position('zero')
+    ax.spines['right'].set_color('none')
+    ax.spines['bottom'].set_position('zero')
     canvas.draw()
     window.update()
         
