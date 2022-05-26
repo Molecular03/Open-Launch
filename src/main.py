@@ -7,6 +7,7 @@ from tkinter import ttk
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,NavigationToolbar2Tk) #Imported in order to allow matplotlib graphs to be interacted with
 
 class Var:
+#Assures all variables are set as decimals when passed through d(*variable name*)
 	def __init__(self,name,num):
 	    self.name = name
 	    self.value = d(num)
@@ -15,10 +16,12 @@ class Var:
 	    print(self.value)
     
 def quit():
+#Destroys and quits tkinter window
     window.destroy
     window.quit()#Air density --> sea level
 
 def validate_input(entry, error_string, errPhrase):
+#Assures variable is entered
     var = entry.get()
     if var:
         var = float(var)
@@ -28,6 +31,7 @@ def validate_input(entry, error_string, errPhrase):
     return var, error_string
     
 def get_values():
+#Receives variables from the entries
     global T_z, P_z, Thrust_z, Cd_z, Radius, WetM, DryM, WetM, Isp, rho_z, A, Thrust_0, Cd_0, error_string
     error_string = ''
     T_z = Var('Temperature',300)
@@ -58,6 +62,7 @@ def get_values():
         plotButton.grid(row=1,column=5)
         
 def temp_pressure_get(z):
+#Calculates temperature and pressure using formulas found in the second reference (README.md)
     T_m, P = d(1), d(1)
     b = d(216.65)
     c = d(34.1632)
@@ -142,7 +147,8 @@ def temp_pressure_get(z):
     return T_m, P
     
 def density(z): #http://www.braeunig.us/space/atmmodel.htm#equations (Note: This is an approximation, will possibly get more exact in future updates)
-    R = d(287.053)
+#Calculates atmospheric density at altitude z
+    R = d(287.053) #Specific gas constant
     z = round(z,2)
     z /= 1000 #Altitude in km
     T_m, P = temp_pressure_get(z)
@@ -151,6 +157,7 @@ def density(z): #http://www.braeunig.us/space/atmmodel.htm#equations (Note: This
     return rho, T_m, P
 
 def drag_coefficient(v,T_z,Cd_z,Cd_0):
+#Calculates the drag coefficient as the rocket's velocity increases
     n = Mol_Air.value*d(1.4)
     if T_z > d(0):
         speed_sound = d(np.sqrt(n*T_z))
@@ -173,12 +180,14 @@ def drag_coefficient(v,T_z,Cd_z,Cd_0):
     return Cd_z
 
 def g_getter(z,earth_grav,g_z):
+#Calculates gravitational acceleration
     distance_from_earth = z + d(6.371e6)
     distance_from_earth = d(int(distance_from_earth))
     g_z = -earth_grav/(distance_from_earth**2) #Gravitational acceleration update as function of z
     return g_z
 
 def euler_cromer():
+#Euler Cromer method of simulation
     global status_string, Thrust_0, Thrust_z, Cd_z, Cd_0, Radius, WetM, DryM, Isp, z, v, t
     z = Var('Altitude', 1)
     v = Var('Velocity', 0)
@@ -195,6 +204,7 @@ def euler_cromer():
     errorLabel.config(text=status_string)
     while True:
         if t.value >= Isp.value:
+#If the engine can no longer burn, the function stops.
             status_string = 'STATUS: \nENGINE BURN COMPLETE\nSUCCESS: TRUE'
             errorLabel.config(text=status_string)
             break
@@ -206,26 +216,33 @@ def euler_cromer():
             error_string = 'STATUS: FUEL RESERVE DEPLETED!\nSUCCESS: FALSE' 
             errorLabel.config(text=status_string)
             break
-        if int(g_z.value) == 0 or int(g_z.value) == 1:
+        if int(g_z.value) == 0:
+#Assures that the gravitational acceleration is not zero
             g_z.value = d(1.0)
         else:
             g_z.value = g_getter(z.value,earth_grav,g_z.value)
+#Removes spent fuel from mass:
         WetM.value += Mass_flow_rate.value #Mass update from fuel use
         WetM.value = round(WetM.value,3)
+#Calculate the atmospheric density and drag coefficient:
         rho_z.value, T_z.value, P_z.value = density(z.value) #Rho, temp, pressure update
         Cd_z.value = drag_coefficient(v.value, T_z.value, Cd_z.value, Cd_0.value) #Drag coefficient
-        Thrust_z.value = Thrust_0.value/WetM.value
+#Calculate thrust and drag
+	Thrust_z.value = Thrust_0.value/WetM.value
         v_sq = v.value**2
-        A.value = round(A.value,2)
+        A.value = round(A.value,2) #Reduces chance of decimal overflow
         Fdrag.value = rho_z.value*v_sq*Cd_z.value*A.value*d(0.5)
         if v.value < 0:
             Fdrag.value *= -1
+#Update velocity, altitude, and time:
         v.value += (Thrust_z.value - Fdrag.value - g_z.value)
         z.value += v.value*dt.value
         t.value += dt.value
+#Append values to be plotted:
         z_km = z.value / d(1000)
         z_values.append(z_km)
         t_values.append(t.value)
+#Plot values:
     plt.plot(t_values,z_values,'-o')
     plt.grid(True)
     plt.title('ALTITUDE vs. TIME')
@@ -238,6 +255,7 @@ def euler_cromer():
     window.update()
 
 def save_file():
+#Saves current variables to a file:
     f = open('user_variables.txt','a')
     try:
         f.write(f'INITIAL THRUST (N): {Thrust_0.value} \nFINAL THRUST (N): {Thrust_z.value} \nINITIAL DRAG COEFFICIENT: {Cd_0.value} \nFINAL DRAG COEFFICIENT: {Cd_z.value} \nRADIUS (m): {Radius.value} \nWET MASS (Kg):    {WetM.value} \nDRY MASS (Kg): {DryM.value} \nISP (s): {Isp.value} \nFINAL Z (m): {z.value} \nFINAL VELOCITY (m/s): {v.value} \nEND TIME: {t.value} \nMISSION: {status_string} \n\n')
@@ -249,6 +267,7 @@ def save_file():
         errorLabel.config(text=saved_status)
 
 def help():
+#Displays variable explanations:
     help_string = ('THRUST:\nEngine\'s force in Newtons\n\nDRAG CO:\nThe Drag Coefficient is used in the\ndrag equation, it is typically around 0.75 for rockets\n\nRADIUS:\nThe rocket\'s radius in meters\n\nWET MASS:\nTotal mass of the rocket, when fully fueled.\nMeasured in Kilograms.\n\nDRY MASS:\nMass of the rocket when fuel is completely expended\nEx. of leftover mass: Payload, Structural, etc.\nMeasured in Kilograms.\n\nISP (SPECIFIC IMPULSE):\nIn the most basic sense, the length of time that a \nrocket\'s engine can burn for or, it\'s efficiency.\nMeasured in seconds.')
     errorLabel.config(text=help_string)
     
