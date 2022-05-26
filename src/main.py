@@ -13,7 +13,7 @@ class Var:
 	    
 	def print_value(self):
 	    print(self.value)
-        
+    
 def quit():
     window.destroy
     window.quit()#Air density --> sea level
@@ -28,18 +28,10 @@ def validate_input(entry, error_string, errPhrase):
     return var, error_string
     
 def get_values():
-    global G, g_z, MoE, Mol_Air, R, T_z, P_z, P_0, Thrust_z, Cd_z, Radius, WetM, DryM, WetM, Isp, rho_z, A, Thrust_0, Cd_0
+    global T_z, P_z, Thrust_z, Cd_z, Radius, WetM, DryM, WetM, Isp, rho_z, A, Thrust_0, Cd_0, error_string
     error_string = ''
-    G = Var('Gravitational Constant',6.67e-11)
-    g_z = Var('Gravitational Acceleration', -9.81)
-    MoE = Var('Mass of Earth (kg)', 5.972e24)
-    Mol_Air = Var('Molar mass of dry air',0.029)
-    R = Var('Molar gass constant', 8.3145)
-    t0, error_string = validate_input(TempEntry,error_string,'\nTemperature at pad')
-    T_z = Var('Temperature',t0)
-    p0, error_string = validate_input(PressureEntry,error_string,'\nPressure at pad')
-    P_z = Var('Pressure',p0)
-    P_0 = Var('Initial Pressure', p0)
+    T_z = Var('Temperature',300)
+    P_z = Var('Pressure',101325)
     thrust0, error_string = validate_input(ThrustEntry,error_string,'\nThrust')
     Thrust_z = Var('Thrust',thrust0)
     Thrust_0 = Var('Initial Thrust', thrust0)
@@ -64,22 +56,9 @@ def get_values():
     else:
         errorLabel.config(text=error_string)
         plotButton.grid(row=1,column=5)
-    #For example:
-    T_z = Var('Temperature',300)
-    P_z = Var('Pressure',101325)
-    Thrust_z = Var('Thrust',560000)
-    Cd_z = Var('Cd', 0.75)
-    Radius = Var('Radius', 1.75/2)
-    WetM = Var('Wet Mass', 46760)
-    DryM = Var('Dry Mass', 3120)
-    Isp = Var('Isp', 221)
-    rho = (Mol_Air.value*T_z.value) / (R.value * P_z.value) #Air density
-    rho_z = Var('Air Density/Rho', rho)
-    area = np.pi*((1.75/2)**2)
-    A = Var('Cross Sectional Area', area)
-    plotButton.grid(row=1,column=5)
-
+        
 def temp_pressure_get(z):
+    T_m, P = d(1), d(1)
     b = d(216.65)
     c = d(34.1632)
     e = d(270.65)
@@ -91,8 +70,8 @@ def temp_pressure_get(z):
         a = d(6.5) * z
         T_m = d(288.15) - a
         f = d(288.15)
-        ff = (f/(f-a)) ** (c/d(-6.5)) 
-        P = P_0.value * ff
+        ff = (f/(f-d(6.5)*z)) ** (c/d(-6.5)) 
+        P = d(1) * ff
     elif z >= d(11) and z < d(20):
         T_m = d(216.63)
         f = d(22632.06)
@@ -134,7 +113,7 @@ def temp_pressure_get(z):
         BB = round(d(2.159582E-06) * B, 3)
         CC = round(d(-4.836957E-04) * C, 3)
         DD = round(d(-0.1425192) * z, 3)
-        P = BB + CC + D + d(13.48)
+        P = BB + CC + DD + d(13.48)
     elif z >= d(91) and z < d(110):
         a = (z-d(91)) / d(-19.9429)
         b = d(1)-(a**2)
@@ -142,14 +121,14 @@ def temp_pressure_get(z):
         BB = round(d(3.304895E-05) * B, 3)
         CC = round(d(-0.019) * C, 3)
         DD = round(d(1.72) * z, 3)
-        P = BB + CC + D + d(-47.75)
+        P = BB + CC + DD + d(-47.75)
     elif z >= d(110) and z < d(120):
         a = z - d(110)
         T_m = d(252) * a
         BB = round(d(-6.539316E-05) * B, 3)
         CC = round(d(0.025) * C, 3)
         DD = round(d(-3.22) * z, 3)
-        P = BB + CC + D + d(135.94)
+        P = BB + CC + DD+ d(135.94)
     elif z >= d(120.0) and z < d(1000):
         a = d(6473.77) / (d(6356.77)+z)
         epsilon = (z - d(120)) * a
@@ -159,7 +138,7 @@ def temp_pressure_get(z):
         BB = round(d(-1.343221E-04) * B, 3)
         CC = round(d(0.03) * C, 3)
         DD = round(d(-3.055) * z, 3)
-        P = BB + CC + D + d(113.58)
+        P = BB + CC + DD + d(113.58)
     return T_m, P
     
 def density(z): #http://www.braeunig.us/space/atmmodel.htm#equations (Note: This is an approximation, will possibly get more exact in future updates)
@@ -167,7 +146,6 @@ def density(z): #http://www.braeunig.us/space/atmmodel.htm#equations (Note: This
     z = round(z,2)
     z /= 1000 #Altitude in km
     T_m, P = temp_pressure_get(z)
-    T_m = round(T_m, 3)
     P = round(P,3)
     rho = P / (R * T_m)
     return rho, T_m, P
@@ -195,31 +173,38 @@ def drag_coefficient(v,T_z,Cd_z,Cd_0):
     return Cd_z
 
 def g_getter(z,earth_grav,g_z):
-    distance_from_earth = z+d(6.371e6)
+    distance_from_earth = z + d(6.371e6)
     distance_from_earth = d(int(distance_from_earth))
     g_z = -earth_grav/(distance_from_earth**2) #Gravitational acceleration update as function of z
     return g_z
 
 def euler_cromer():
+    global status_string, Thrust_0, Thrust_z, Cd_z, Cd_0, Radius, WetM, DryM, Isp, z, v, t
     z = Var('Altitude', 1)
     v = Var('Velocity', 0)
     t = Var('Time', 0.1)
     dt = Var('dt', 0.1)
     z_values, t_values = [], []
-    T_z = Var('Temperature',300)
-    P_z = Var('Pressure',101325)
     earth_grav =  d(G.value*MoE.value)
     earth_grav = round(earth_grav,2)
     fdrag0 = Cd_z.value * rho_z.value * v.value**2 * A.value * d(0.5)
     Fdrag = Var('Drag force', fdrag0)
     mflowrate = Thrust_z.value/(g_z.value*Isp.value)
     Mass_flow_rate = Var('Mass flow rate', mflowrate)
-    while t.value <= Isp.value:
+    status_string = 'STATUS: FLYING\nSUCCESS: TRUE'
+    errorLabel.config(text=status_string)
+    while True:
+        if t.value >= Isp.value:
+            status_string = 'STATUS: \nENGINE BURN COMPLETE\nSUCCESS: TRUE'
+            errorLabel.config(text=status_string)
+            break
         if z.value < d(0): #Crash Condition
-            print('Crashed!') #Change to a Tkinter output 
+            status_string = 'STATUS: CRASHED!\nSUCCESS: FALSE'
+            errorLabel.config(text=status_string)
             break
         if WetM.value <= DryM.value: #If current mass is less than/equal to dry mass, no more propellant is available
-            print('No more fuel') #Change to a Tkinter output 
+            error_string = 'STATUS: FUEL RESERVE DEPLETED!\nSUCCESS: FALSE' 
+            errorLabel.config(text=status_string)
             break
         if int(g_z.value) == 0 or int(g_z.value) == 1:
             g_z.value = d(1.0)
@@ -243,22 +228,40 @@ def euler_cromer():
         t_values.append(t.value)
     plt.plot(t_values,z_values,'-o')
     plt.grid(True)
+    plt.title('ALTITUDE vs. TIME')
+    plt.ylabel('ALTITUDE (KM)')
+    plt.xlabel('TIME (S)')
     ax = plt.gca()
     ax.spines['top'].set_color('none')
-    ax.spines['left'].set_position('zero')
     ax.spines['right'].set_color('none')
-    ax.spines['bottom'].set_position('zero')
     canvas.draw()
     window.update()
 
-def example():
-    pass
-
 def save_file():
-    pass
+    f = open('user_variables.txt','a')
+    try:
+        f.write(f'INITIAL THRUST (N): {Thrust_0.value} \nFINAL THRUST (N): {Thrust_z.value} \nINITIAL DRAG COEFFICIENT: {Cd_0.value} \nFINAL DRAG COEFFICIENT: {Cd_z.value} \nRADIUS (m): {Radius.value} \nWET MASS (Kg):    {WetM.value} \nDRY MASS (Kg): {DryM.value} \nISP (s): {Isp.value} \nFINAL Z (m): {z.value} \nFINAL VELOCITY (m/s): {v.value} \nEND TIME: {t.value} \nMISSION: {status_string} \n\n')
+        f.close
+        saved_status = 'SAVED!'
+        errorLabel.config(text=saved_status)
+    except:
+        saved_status = 'ERROR WHILE SAVING\nPLEASE TRY INPUTTING VARIABLES IF YOU HAVE NOT DONE SO'
+        errorLabel.config(text=saved_status)
+
+def help():
+    help_string = ('THRUST:\nEngine\'s force in Newtons\n\nDRAG CO:\nThe Drag Coefficient is used in the\ndrag equation, it is typically around 0.75 for rockets\n\nRADIUS:\nThe rocket\'s radius in meters\n\nWET MASS:\nTotal mass of the rocket, when fully fueled.\nMeasured in Kilograms.\n\nDRY MASS:\nMass of the rocket when fuel is completely expended\nEx. of leftover mass: Payload, Structural, etc.\nMeasured in Kilograms.\n\nISP (SPECIFIC IMPULSE):\nIn the most basic sense, the length of time that a \nrocket\'s engine can burn for or, it\'s efficiency.\nMeasured in seconds.')
+    errorLabel.config(text=help_string)
     
+#Initialized variables
+G = Var('Gravitational Constant',6.67e-11)
+g_z = Var('Gravitational Acceleration', -9.81)
+MoE = Var('Mass of Earth (kg)', 5.972e24)
+Mol_Air = Var('Molar mass of dry air',0.029)
+R = Var('Molar gass constant', 8.3145)
+
 #Create tkinter window
 window = tk.Tk()
+window.title('Open-Launch')
 window.columnconfigure(2,weight=2) #Tells frame to np.expand to fill extra space if window is resized and where to np.expand to.
 window.rowconfigure(0, weight=1)
 plotFrame = Frame(window) #Where the plot will stay
@@ -267,7 +270,7 @@ inputSection = Frame(window) #Where the user will input data
 inputSection.grid(column=2,row=0)
 
 #Integrate Matplotlib 
-fig = plt.figure(figsize=(7,7))
+fig = plt.figure(figsize=(8,8))
 canvas = FigureCanvasTkAgg(fig, master=plotFrame) #Create tkinter canvas that holds the matplotlib Figure
 canvas.get_tk_widget().grid(row=0,column=0) #Places canvas on plotFrame
 toolbarFrame = tk.Frame(master=plotFrame)
@@ -278,38 +281,32 @@ toolbar = NavigationToolbar2Tk(canvas,toolbarFrame)
 quitButton = Button(inputSection, text='Quit', command=quit).grid(row=4,column=5)
 getVariables = Button(inputSection, text='Calculate', command=get_values).grid(row=0,column=5)
 plotButton = Button(inputSection, text='Plot', command=euler_cromer)
-presetButton = Button(inputSection, text='Example Plot', command=example).grid(row=2,column=5)
-saveButton = Button(inputSection, text='Save Your Variables', command=save_file).grid(row=3,column=5)
+saveButton = Button(inputSection, text='Save Your Variables', command=save_file).grid(row=2,column=5)
+helpButton = Button(inputSection, text='What are these variables?', command=help).grid(row=3,column=5)
 
 #Error Thrower
 errorLabel = Label(inputSection, text='')
 errorLabel.grid(row=0, column=7)
 
 #All entries
-TempEntry = Entry(inputSection) #Enter temperature
-TempEntry.grid(row=0,column=1)
-Label(inputSection, text='Temp:').grid(row=0,column=0)
-PressureEntry = Entry(inputSection) #Enter Pressure
-PressureEntry.grid(row=1,column=1)
-Label(inputSection, text='Pressure (Pa):').grid(row=1,column=0)
 ThrustEntry = Entry(inputSection) #Enter Rocket Specs.
-ThrustEntry.grid(row=2,column=1)
-Label(inputSection, text='Thrust (N):').grid(row=2,column=0)
+ThrustEntry.grid(row=0,column=1)
+Label(inputSection, text='Thrust (N):').grid(row=0,column=0)
 DragCoEntry = Entry(inputSection) #Enter Drag Coefficient
-DragCoEntry.grid(row=3,column=1)
-Label(inputSection, text='Drag Co:').grid(row=3,column=0)
+DragCoEntry.grid(row=1,column=1)
+Label(inputSection, text='Drag Co:').grid(row=1,column=0)
 REntry = Entry(inputSection) #Enter Radius
-REntry.grid(row=4,column=1)
-Label(inputSection, text='Radius (m):').grid(row=4,column=0)
+REntry.grid(row=2,column=1)
+Label(inputSection, text='Radius (m):').grid(row=2,column=0)
 WetMassEntry = Entry(inputSection) #Enter Wet Mass
-WetMassEntry.grid(row=5,column=1)
-Label(inputSection, text='Wet Mass (kg):').grid(row=5,column=0)
+WetMassEntry.grid(row=3,column=1)
+Label(inputSection, text='Wet Mass (kg):').grid(row=3,column=0)
 DryMassEntry = Entry(inputSection) #Enter Dry Mass
-DryMassEntry.grid(row=6,column=1)
-Label(inputSection, text='Dry Mass (kg):').grid(row=6,column=0)
+DryMassEntry.grid(row=4,column=1)
+Label(inputSection, text='Dry Mass (kg):').grid(row=4,column=0)
 IspEntry = Entry(inputSection) #Enter Isp
-IspEntry.grid(row=7,column=1)
-Label(inputSection, text='Isp (s):').grid(row=7,column=0)
+IspEntry.grid(row=5,column=1)
+Label(inputSection, text='Isp (s):').grid(row=5,column=0)
 
 window.mainloop()
-#https://pages.vassar.edu/magnes/2019/05/12/computational-simulation-of-rocket-trajectories/
+#Physics Ressource: https://pages.vassar.edu/magnes/2019/05/12/computational-simulation-of-rocket-trajectories/
