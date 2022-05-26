@@ -216,7 +216,7 @@ def euler_cromer():
             error_string = 'STATUS: FUEL RESERVE DEPLETED!\nSUCCESS: FALSE' 
             errorLabel.config(text=status_string)
             break
-        if int(g_z.value) == 0:
+        if int(g_z.value) == 0 or int(g_z.value) == 0:
 #Assures that the gravitational acceleration is not zero
             g_z.value = d(1.0)
         else:
