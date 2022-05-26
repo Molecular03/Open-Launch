@@ -18,7 +18,7 @@ class Var:
 def quit():
 #Destroys and quits tkinter window
     window.destroy
-    window.quit()#Air density --> sea level
+    window.quit()
 
 def validate_input(entry, error_string, errPhrase):
 #Assures variable is entered
