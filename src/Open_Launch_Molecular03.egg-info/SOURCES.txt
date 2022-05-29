@@ -1,8 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-setup.cfg
-src/Open_Launch_Molecular03.egg-info/PKG-INFO
-src/Open_Launch_Molecular03.egg-info/SOURCES.txt
-src/Open_Launch_Molecular03.egg-info/dependency_links.txt
-src/Open_Launch_Molecular03.egg-info/top_level.txt

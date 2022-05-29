@@ -19,9 +19,7 @@ This can be accessed by pressing the 'What are these variables?' button.
 ## Variable Saving
 ![Variable Saving](https://github.com/Molecular03/Open-Launch/blob/main/images/variables_save.png)
 
-After running a 'plot' command, the user can save some variables to a text file called 'user_variables.txt' found in:
-
-Open-Launch/src/user_variables.txt
+After running a 'plot' command, the user can save some variables to a text file called 'user_variables.txt'.
 
 ## References:
 [1] https://pages.vassar.edu/magnes/2019/05/12/computational-simulation-of-rocket-trajectories/
