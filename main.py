@@ -70,6 +70,7 @@ def euler_cromer():
     x_pos = 0.0
     y_pos = 0.0
     while True:
+#Calls rust, returns rocket's values
         values = atmos_model.calc_sim(z,WetM.value,m_dot,v,Cd_0.value,Thrust_z.value,area,Theta.value,x_pos,y_pos,t)
         z = values[0]
         WetM.value = values[1]
