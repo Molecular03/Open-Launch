@@ -14,9 +14,6 @@ $ source .env/bin/activate
 ### Successful Flight Example
 ![Successful Flight Example](https://github.com/Molecular03/Open-Launch/blob/main/images/3D.png)
 
-### Failed Flight Example
-![Failed Flight Example](https://github.com/Molecular03/Open-Launch/blob/main/images/failed_test2.png)
-
 ## Variables
 
 ### Variable Help for New Users
