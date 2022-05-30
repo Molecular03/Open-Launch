@@ -12,7 +12,7 @@ $ source .env/bin/activate
 ## Plotting
 
 ### Successful Flight Example
-![Successful Flight Example](https://github.com/Molecular03/Open-Launch/blob/main/images/working_test1.png)
+![Successful Flight Example]([https://github.com/Molecular03/Open-Launch/blob/main/images/working_test1.png](https://github.com/Molecular03/Open-Launch/blob/main/images/3D.png))
 
 ### Failed Flight Example
 ![Failed Flight Example](https://github.com/Molecular03/Open-Launch/blob/main/images/failed_test2.png)
