@@ -1,6 +1,14 @@
 # Open-Launch
 A work in progress, free and open source launch simulation for hobbyists and space enthusiasts.
 
+## Starting
+python venv: 
+
+'''bash
+$ python -m venv .env
+$ source .env/bin/activate
+'''
+
 ## Plotting
 
 ### Successful Flight Example
