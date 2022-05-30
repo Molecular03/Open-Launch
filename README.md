@@ -4,10 +4,10 @@ A work in progress, free and open source launch simulation for hobbyists and spa
 ## Starting
 python venv: 
 
-'''bash
+```bash
 $ python -m venv .env
 $ source .env/bin/activate
-'''
+```
 
 ## Plotting
 
